@@ -38,7 +38,8 @@ g_app.get( "/chatbot", function( request, response )
     
     response.render( "pages/chatbot", { "wa_integration_id"      : g_wa_integration_id,
                                         "wa_region"              : g_wa_region,
-                                        "wa_service_instance_id" : g_wa_service_instance_id } );
+                                        "wa_service_instance_id" : g_wa_service_instance_id,
+                                        "base_url"               : g_base_url } );
     
 } );
 
