@@ -1,7 +1,7 @@
 
-const g_wa_integration_id      = process.env.WAINTEGRATIONID;
-const g_wa_region              = process.env.WAREGION;
-const g_wa_service_instance_id = process.env.WASERVICEINSTANCEID;
+const g_wa_integration_id      = process.env.WA_INTEGRATION_ID;
+const g_wa_region              = process.env.WA_REGION;
+const g_wa_service_instance_id = process.env.WA_SERVICE_INSTANCE_ID;
 const g_base_url               = process.env.BASE_URL;
 
 const g_some_async_webservice = g_base_url + "/asyncendpoint";
@@ -25,7 +25,7 @@ g_app.set( "view engine", "ejs" );
 const g_server = g_http.Server( g_app );
 g_server.listen( 8080, function()
 {
-  console.log( "\nServer running" );
+  g_log.writeLog( "\nServer running" );
   
 } );
 
@@ -34,7 +34,7 @@ g_server.listen( 8080, function()
 //
 g_app.get( "/chatbot", function( request, response )
 {
-    console.log( "\n/chatbot ..." );
+    g_log.writeLog( "\n/chatbot ..." );
     
     response.render( "pages/chatbot", { "wa_integration_id"      : g_wa_integration_id,
                                         "wa_region"              : g_wa_region,
@@ -48,40 +48,56 @@ g_app.get( "/chatbot", function( request, response )
 //
 g_app.post( "/asyncwrapper", function( request, response )
 {
-    g_log.writeLog( "\n[server] /asyncwrapper body:\n" + JSON.stringify( request.body, null, 3 ) );
+    g_log.writeLog( "\n/asyncwrapper body:\n" + JSON.stringify( request.body, null, 3 ) );
     
     var str = request.body.str ? request.body.str : "";
     
-    g_log.writeLog( "[server] /asyncwrapper str: '" + str + "'" );
-    
     // 1. Respond right away so the chatbot can move on
-    // 2. Call async webservice
-    // 3. After webservice responds, send a message to the chatbot through the web api
+    // 2. Call the async web service
+    // 3. After the web service responds, send a message to the chatbot using the chatbot web api
     
     response.status( 200 ).json( { "error_str" : "", "result" : "Success" } );
     
-    g_axios.post( g_some_async_webservice, { "str" : str } ).then( function( result )
+    callAsyncWebService( str, function( error_str, result_data )
     {
-        if( 200 !== result.status )
+        if( error_str )
         {
-            g_log.writeLog( "[server] /asyncwrapper sends error message" );            
-            sendMessage( { "error_str" : "Call to async endpoint failed" } );
+            sendMessage( { "error_str" : error_str } );
             return;
         }
         
-        g_log.writeLog( "[server] /asyncwrapper sends success message" );
-        
-        sendMessage( result.data );
-        
-    } ).catch( function( error )
-    {
-        g_log.writeLog( "[server] /asyncwrapper sends error message:\n" + error.message );
-        
-        sendMessage( { "error_str" : error.message } );
+        sendMessage( result_data );
         
     } );
             
 } );
+
+
+function callAsyncWebService( str, callback )
+{
+    var url  = g_some_async_webservice; // This would be whatever web service you need to call
+    var data = { "str" : str };
+    
+    g_axios.post( url, data ).then( function( result )
+    {
+        if( 200 !== result.status )
+        {
+            g_log.writeLog( "callAsyncWebService error: HTTP !== 200" );            
+            callback( "Call to async endpoint failed", {} );
+            return;
+        }
+        
+        g_log.writeLog( "callAsyncWebService success" );
+        callback( "", result.data );
+        
+    } ).catch( function( error )
+    {
+        g_log.writeLog( "callAsyncWebService axios error message:\n" + error.message );
+        callback( error.message, {} );
+        
+    } );
+    
+}
 
 
 // Use socket.io to send async web service results 
@@ -91,7 +107,7 @@ var g_socket_p = null;
 const g_io = g_socketio( g_server );
 g_io.on( "connection", function( socket )
 {
-    g_log.writeLog( "\n[server] socket.io connection" );
+    g_log.writeLog( "\nsocket.io connection" );
     
     g_socket_p = socket;
   
@@ -101,13 +117,13 @@ function sendMessage( data )
 {
     try
     {
-        g_log.writeLog( "[server] sendMessage data:\n" + JSON.stringify( data, null, 3 ) );
+        g_log.writeLog( "sendMessage data:\n" + JSON.stringify( data, null, 3 ) );
         
         g_socket_p.emit( "asyncresult", data );
     }
     catch( e )
     {
-        g_log.writeLog( "[server] sendMessage caught an error:\n" + e.message + "\n" + e.stack );
+        g_log.writeLog( "sendMessage caught an error:\n" + e.message + "\n" + e.stack );
     }
 }
 
@@ -116,7 +132,7 @@ function sendMessage( data )
 //
 g_app.post( "/asyncendpoint", function( request, response )
 {
-    g_log.writeLog( "[server] /asyncendpoint body:\n" + JSON.stringify( request.body, null, 3 ) );
+    g_log.writeLog( "/asyncendpoint body:\n" + JSON.stringify( request.body, null, 3 ) );
     
     var str = request.body.str ? request.body.str : "";
     
@@ -124,9 +140,9 @@ g_app.post( "/asyncendpoint", function( request, response )
     {
         // Wait 10 seconds before responding
         
-        g_log.writeLog( "[server] /asyncendpoint responds" );
+        g_log.writeLog( "/asyncendpoint responds" );
         
-        var result = str.split("").reverse().join(""); // Note: Only works for ASCII
+        var result = str.split("").reverse().join(""); // Note: Just a random thing to show results. *Only works for ASCII text.
         
         response.status( 200 ).json( { "error_str" : "", "result" : result } );
         
@@ -168,7 +184,7 @@ g_app.post( "/clearlog", function( request, response )
 //
 g_app.get( "/health", function( request, response )
 {
-    g_log.writeLog( "[server] /health ..." );
+    g_log.writeLog( "/health ..." );
     
     response.status( 200 ).end( "Success" );
     
